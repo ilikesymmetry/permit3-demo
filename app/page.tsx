@@ -17,7 +17,8 @@ const SPEND_PERMISSION_MANAGER = "0x456a216aC3312d45FF40079405b3a2eb4c88d7a5";
 const DEFAULT_SPENDER = "0x2B654aB28f82a2a4E4F6DB8e20791E5AcF4125c6";
 
 const HOOKS = {
-  ERC20: "0xe7c50e770cf0b6cd5c5756f9de14fbb343cf9843"
+  ERC20: "0xe7c50e770cf0b6cd5c5756f9de14fbb343cf9843",
+  NATIVE: "0xcbf50e68a02d5d601a38144ee0eca882238ac5b6",
 }
 
 // Utility function to deep copy an object and convert BigInts to strings
@@ -153,7 +154,7 @@ export default function Home() {
       end: end,
       salt: salt,
       extraData: extraData,
-      hook: token === "USDC" && supportsAuxiliaryFunds ? HOOKS.ERC20 : zeroAddress,
+      hook: !supportsAuxiliaryFunds ? zeroAddress : token === "USDC" ? HOOKS.ERC20 : HOOKS.NATIVE,
       hookConfig: "0x",
     };
 
