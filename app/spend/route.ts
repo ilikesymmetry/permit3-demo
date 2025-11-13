@@ -5,7 +5,8 @@ import { baseSepolia } from "viem/chains";
 import { SPEND_PERMISSION_MANAGER_ABI } from "./abi";
 
 // Spend Permission Manager contract address
-const SPEND_PERMISSION_MANAGER = "0x456a216aC3312d45FF40079405b3a2eb4c88d7a5";
+// const SPEND_PERMISSION_MANAGER = "0x456a216aC3312d45FF40079405b3a2eb4c88d7a5";
+const SPEND_PERMISSION_MANAGER = "0x0de59ad970032a49ca4b88eb33304fc38b4713ea";
 
 export async function POST(request: NextRequest) {
   try {

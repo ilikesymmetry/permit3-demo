@@ -11,16 +11,22 @@ const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 // Spend Permission Manager contract address
-const SPEND_PERMISSION_MANAGER = "0x456a216aC3312d45FF40079405b3a2eb4c88d7a5";
+// const SPEND_PERMISSION_MANAGER = "0x456a216aC3312d45FF40079405b3a2eb4c88d7a5";
+const SPEND_PERMISSION_MANAGER = "0x0de59ad970032a49ca4b88eb33304fc38b4713ea";
 
 // Default spender address (you may want to configure this)
 const DEFAULT_SPENDER = "0x2B654aB28f82a2a4E4F6DB8e20791E5AcF4125c6";
 
 const HOOKS = {
-  ERC20: "0xe7c50e770cf0b6cd5c5756f9de14fbb343cf9843",
-  NATIVE: "0xcbf50e68a02d5d601a38144ee0eca882238ac5b6",
-  SUBACCOUNT: "0x45806eb0bde6f2434f528293efd736f47287dee7"
+  NATIVE: "0x1ee7c5cf2338a05d799d0cc1574ebc0634978009",
+  ERC20: "0xe69c70f1468c819116afe879211dbe9f7fefd7e2",
+  SUBACCOUNT: "0x5af1b6aef1205065b8b4f3e6eb90eeeab55d72b9"
 }
+// const HOOKS = {
+//   ERC20: "0xe7c50e770cf0b6cd5c5756f9de14fbb343cf9843",
+//   NATIVE: "0xcbf50e68a02d5d601a38144ee0eca882238ac5b6",
+//   SUBACCOUNT: "0x45806eb0bde6f2434f528293efd736f47287dee7"
+// }
 
 // Utility function to deep copy an object and convert BigInts to strings
 function deepCopyWithBigIntToString(obj: any): any {
