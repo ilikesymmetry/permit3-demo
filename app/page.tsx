@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import { Wallet } from "@coinbase/onchainkit/wallet";
 import { useAccount, useCapabilities, useChainId, useSignTypedData, useSwitchChain, useSendTransaction, useReadContract } from "wagmi";
-import { parseUnits, encodePacked, encodeFunctionData, maxUint256, zeroAddress, hashTypedData } from "viem";
+import { parseUnits, encodePacked, encodeFunctionData, maxUint256, zeroAddress, hashTypedData, encodeAbiParameters, padHex, pad } from "viem";
 import { baseSepolia } from "viem/chains";
 
 // Token addresses (Base mainnet)
@@ -19,6 +19,7 @@ const DEFAULT_SPENDER = "0x2B654aB28f82a2a4E4F6DB8e20791E5AcF4125c6";
 const HOOKS = {
   ERC20: "0xe7c50e770cf0b6cd5c5756f9de14fbb343cf9843",
   NATIVE: "0xcbf50e68a02d5d601a38144ee0eca882238ac5b6",
+  SUBACCOUNT: "0x45806eb0bde6f2434f528293efd736f47287dee7"
 }
 
 // Utility function to deep copy an object and convert BigInts to strings
@@ -64,6 +65,7 @@ export default function Home() {
   const [token, setToken] = useState("USDC");
   const [amount, setAmount] = useState("");
   const [balanceAbstraction, setBalanceAbstraction] = useState("none");
+  const [subaccountAddress, setSubaccountAddress] = useState("");
   const [signedPermission, setSignedPermission] = useState<any>(null);
   const [isSpending, setIsSpending] = useState(false);
 
@@ -114,6 +116,13 @@ export default function Home() {
     }
   }, [balanceAbstraction, supportsAuxiliaryFunds]);
 
+  // Clear subaccount address when balance abstraction changes away from subaccount
+  useEffect(() => {
+    if (balanceAbstraction !== "subaccount") {
+      setSubaccountAddress("");
+    }
+  }, [balanceAbstraction]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -130,9 +139,7 @@ export default function Home() {
     const allowance = parseUnits(amount, decimals);
     
     // Encode balance abstraction info into extraData
-    const extraData = balanceAbstraction !== "none" 
-      ? encodePacked(["string"], [balanceAbstraction])
-      : "0x";
+    const extraData = "0x"
     
     // Set timestamps (start now, end in 1 year)
     const start = Math.floor(Date.now() / 1000);
@@ -144,6 +151,8 @@ export default function Home() {
     // Random salt
     const salt = BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
 
+    console.log({balanceAbstraction, subaccountAddress});
+
     const spendPermission = {
       account: address,
       spender: DEFAULT_SPENDER,
@@ -154,8 +163,8 @@ export default function Home() {
       end: end,
       salt: salt,
       extraData: extraData,
-      hook: !supportsAuxiliaryFunds ? zeroAddress : token === "USDC" ? HOOKS.ERC20 : HOOKS.NATIVE,
-      hookConfig: "0x",
+      hook: !supportsAuxiliaryFunds ? zeroAddress : balanceAbstraction === "subaccount" ? HOOKS.SUBACCOUNT : token === "USDC" ? HOOKS.ERC20 : HOOKS.NATIVE,
+      hookConfig: balanceAbstraction === "subaccount" && subaccountAddress ? pad(subaccountAddress as `0x${string}`, {dir: "left", size: 32}) : "0x",
     };
 
     // EIP-712 Domain
@@ -319,6 +328,20 @@ export default function Home() {
                 <option value="subaccount" disabled={!supportsAuxiliaryFunds}>Subaccount</option>
               </select>
             </div>
+
+            {balanceAbstraction === "subaccount" && (
+              <div className={styles.formGroup}>
+                <label htmlFor="subaccountAddress">Subaccount Address</label>
+                <input
+                  id="subaccountAddress"
+                  type="text"
+                  value={subaccountAddress}
+                  onChange={(e) => setSubaccountAddress(e.target.value)}
+                  placeholder="0x..."
+                  className={styles.input}
+                />
+              </div>
+            )}
 
             {!supportsAuxiliaryFunds && token === "USDC" && needsApproval && (
               <button 
