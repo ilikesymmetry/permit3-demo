@@ -11,7 +11,6 @@ const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 // Spend Permission Manager contract address
-// const SPEND_PERMISSION_MANAGER = "0x456a216aC3312d45FF40079405b3a2eb4c88d7a5";
 const SPEND_PERMISSION_MANAGER = "0x0de59ad970032a49ca4b88eb33304fc38b4713ea";
 
 // Default spender address (you may want to configure this)
@@ -22,11 +21,6 @@ const HOOKS = {
   ERC20: "0xe69c70f1468c819116afe879211dbe9f7fefd7e2",
   SUBACCOUNT: "0x5af1b6aef1205065b8b4f3e6eb90eeeab55d72b9"
 }
-// const HOOKS = {
-//   ERC20: "0xe7c50e770cf0b6cd5c5756f9de14fbb343cf9843",
-//   NATIVE: "0xcbf50e68a02d5d601a38144ee0eca882238ac5b6",
-//   SUBACCOUNT: "0x45806eb0bde6f2434f528293efd736f47287dee7"
-// }
 
 // Utility function to deep copy an object and convert BigInts to strings
 function deepCopyWithBigIntToString(obj: any): any {
@@ -74,6 +68,7 @@ export default function Home() {
   const [subaccountAddress, setSubaccountAddress] = useState("");
   const [signedPermission, setSignedPermission] = useState<any>(null);
   const [isSpending, setIsSpending] = useState(false);
+  const [spendTxHash, setSpendTxHash] = useState<string | null>(null);
 
   // console.log(chainId);
 
@@ -98,12 +93,8 @@ export default function Home() {
   // Check if approval is needed (allowance is 0 or insufficient)
   const needsApproval = !allowance || allowance === BigInt(0);
 
-  // console.log({allowance, needsApproval});
-
   // Get capabilities for the current chain
   const chainCapabilities = baseSepolia?.id ? capabilities?.[baseSepolia.id] : undefined;
-
-  // console.log({capabilities, chainCapabilities, allowance, needsApproval});
   
   // Check if auxiliary funds (balance abstraction) is supported
   const supportsAuxiliaryFunds = (chainCapabilities as any)?.auxiliaryFunds?.supported === true;
@@ -268,7 +259,7 @@ export default function Home() {
         console.log("Spend successful!");
         console.log("Approve transaction hash:", data.approveTxHash);
         console.log("Spend transaction hash:", data.spendTxHash);
-        alert(`Spend successful!\nApprove TX: ${data.approveTxHash}\nSpend TX: ${data.spendTxHash}`);
+        setSpendTxHash(data.spendTxHash);
       } else {
         console.error("Spend failed:", data);
         alert(`Spend failed: ${data.error}`);
@@ -373,8 +364,22 @@ export default function Home() {
                 {isSpending ? "Spending..." : "Spend"}
               </button>
             )}
+
+            {spendTxHash && (
+              <div className={styles.txHashContainer}>
+                <a
+                  href={`https://sepolia.basescan.org/tx/${spendTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.txLink}
+                >
+                  View on Basescan
+                </a>
+              </div>
+            )}
           </form>
         )}
+
       </main>
     </div>
   );

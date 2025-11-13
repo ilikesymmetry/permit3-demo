@@ -110,3 +110,17 @@
 .button:active {
   background: #003399;
 }
+
+.txHashContainer {
+  text-align: center;
+}
+
+.txLink {
+  text-decoration: none;
+  font-weight: 400;
+  transition: text-decoration 0.2s;
+}
+
+.txLink:hover {
+  text-decoration: underline;
+}
