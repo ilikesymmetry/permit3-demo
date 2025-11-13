@@ -2,36 +2,95 @@
 import { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import { Wallet } from "@coinbase/onchainkit/wallet";
-import { useAccount, useCapabilities, useChainId, useSignTypedData, useSwitchChain } from "wagmi";
-import { parseUnits, encodePacked } from "viem";
+import { useAccount, useCapabilities, useChainId, useSignTypedData, useSwitchChain, useSendTransaction, useReadContract } from "wagmi";
+import { parseUnits, encodePacked, encodeFunctionData, maxUint256, zeroAddress } from "viem";
 import { baseSepolia } from "viem/chains";
 
 // Token addresses (Base mainnet)
 const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
-const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
 // Spend Permission Manager contract address
-const SPEND_PERMISSION_MANAGER = "0xf85210B21cC50302F477BA56686d2019dC9b67Ad";
+const SPEND_PERMISSION_MANAGER = "0x456a216aC3312d45FF40079405b3a2eb4c88d7a5";
 
 // Default spender address (you may want to configure this)
-const DEFAULT_SPENDER = "0x0000000000000000000000000000000000000000";
+const DEFAULT_SPENDER = "0x2B654aB28f82a2a4E4F6DB8e20791E5AcF4125c6";
+
+// Utility function to deep copy an object and convert BigInts to strings
+function deepCopyWithBigIntToString(obj: any): any {
+  return JSON.parse(
+    JSON.stringify(obj, (key, value) =>
+      typeof value === "bigint" ? value.toString() : value
+    )
+  );
+}
+
+// ERC20 ABI for approve and allowance functions
+const ERC20_ABI = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "allowance",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
 
 export default function Home() {
   const { address } = useAccount();
   const { data: capabilities } = useCapabilities();
-  const { signTypedData } = useSignTypedData();
+  const { signTypedData, data: signature } = useSignTypedData();
   const { switchChain } = useSwitchChain();
+  const { sendTransaction } = useSendTransaction();
   const chainId = useChainId();
   const [token, setToken] = useState("USDC");
   const [amount, setAmount] = useState("");
   const [balanceAbstraction, setBalanceAbstraction] = useState("none");
+  const [signedPermission, setSignedPermission] = useState<any>(null);
+  const [isSpending, setIsSpending] = useState(false);
 
   console.log(chainId);
+
+  // Switch to baseSepolia if on a different chain
+  useEffect(() => {
+    if (address && chainId !== baseSepolia.id && switchChain) {
+      switchChain({ chainId: baseSepolia.id });
+    }
+  }, [address, chainId, switchChain]);
+
+  // Check USDC allowance for SpendPermissionManager
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: USDC_ADDRESS as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: "allowance",
+    args: address ? [address, SPEND_PERMISSION_MANAGER as `0x${string}`] : undefined,
+    query: {
+      enabled: !!address,
+    },
+  });
+
+  // Check if approval is needed (allowance is 0 or insufficient)
+  const needsApproval = !allowance || allowance === BigInt(0);
+
+  console.log({allowance, needsApproval});
 
   // Get capabilities for the current chain
   const chainCapabilities = baseSepolia?.id ? capabilities?.[baseSepolia.id] : undefined;
 
-  console.log({capabilities, chainCapabilities});
+  console.log({capabilities, chainCapabilities, allowance, needsApproval});
   
   // Check if auxiliary funds (balance abstraction) is supported
   const supportsAuxiliaryFunds = (chainCapabilities as any)?.auxiliaryFunds?.supported === true;
@@ -90,6 +149,7 @@ export default function Home() {
       end: end,
       salt: salt,
       extraData: extraData,
+      hook: zeroAddress,
       hookConfig: "0x",
     };
 
@@ -113,11 +173,15 @@ export default function Home() {
         { name: "end", type: "uint48" },
         { name: "salt", type: "uint256" },
         { name: "extraData", type: "bytes" },
+        { name: "hook", type: "address" },
         { name: "hookConfig", type: "bytes" },
-      ],
+      ]
     };
 
     console.log("Signing spend permission:", spendPermission);
+
+    // Store the permission for later use
+    setSignedPermission(spendPermission);
 
     signTypedData({
       domain,
@@ -125,6 +189,66 @@ export default function Home() {
       primaryType: "SpendPermission",
       message: spendPermission,
     });
+  };
+
+  const handleApprove = () => {
+    if (!sendTransaction) {
+      console.error("sendTransaction not available");
+      return;
+    }
+
+    // Encode the approve function call
+    const approveData = encodeFunctionData({
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [SPEND_PERMISSION_MANAGER as `0x${string}`, maxUint256],
+    });
+
+    // Use max approval for simplicity
+    sendTransaction({
+      chainId: baseSepolia.id,
+      to: USDC_ADDRESS as `0x${string}`,
+      data: approveData,
+    });
+  };
+
+  const handleSpend = async () => {
+    if (!signedPermission || !signature) {
+      console.error("No signed permission available");
+      return;
+    }
+
+    setIsSpending(true);
+
+    try {
+      const response = await fetch("/spend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          permission: deepCopyWithBigIntToString(signedPermission),
+          signature: signature,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log("Spend successful!");
+        console.log("Approve transaction hash:", data.approveTxHash);
+        console.log("Spend transaction hash:", data.spendTxHash);
+        alert(`Spend successful!\nApprove TX: ${data.approveTxHash}\nSpend TX: ${data.spendTxHash}`);
+      } else {
+        console.error("Spend failed:", data);
+        alert(`Spend failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Error calling spend API:", error);
+      alert("Error calling spend API");
+    } finally {
+      setIsSpending(false);
+    }
   };
 
   return (
@@ -181,9 +305,30 @@ export default function Home() {
               </select>
             </div>
 
+            {!supportsAuxiliaryFunds && token === "USDC" && needsApproval && (
+              <button 
+                type="button" 
+                onClick={handleApprove} 
+                className={styles.button}
+              >
+                Approve USDC
+              </button>
+            )}
+
             <button type="submit" className={styles.button}>
-              Submit
+              Sign Permit
             </button>
+
+            {signedPermission && signature && (
+              <button 
+                type="button" 
+                onClick={handleSpend} 
+                className={styles.button}
+                disabled={isSpending}
+              >
+                {isSpending ? "Spending..." : "Spend"}
+              </button>
+            )}
           </form>
         )}
       </main>

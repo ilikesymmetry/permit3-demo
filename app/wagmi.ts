@@ -7,13 +7,13 @@ export function getConfig() {
     chains: [baseSepolia],
     connectors: [
       // smart wallet
-      baseAccount({
-        preference: {
-          walletUrl: "http://localhost:3005/connect",
-        },
-      }),
+      // baseAccount({
+      //   preference: {
+      //     walletUrl: "http://localhost:3005/connect",
+      //   },
+      // }),
       // EOA
-      // coinbaseWallet(),
+      coinbaseWallet(),
     ],
     storage: createStorage({
       storage: cookieStorage,
