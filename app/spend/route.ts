@@ -58,6 +58,9 @@ export async function POST(request: NextRequest) {
       args: [permissionWithBigInt, signature as `0x${string}`],
     });
 
+    // Wait for 100ms (a tenth of a second)
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     // Send transaction to spend function
     const spendTxHash = await walletClient.writeContract({
       address: SPEND_PERMISSION_MANAGER as Address,

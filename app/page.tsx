@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import { Wallet } from "@coinbase/onchainkit/wallet";
 import { useAccount, useCapabilities, useChainId, useSignTypedData, useSwitchChain, useSendTransaction, useReadContract } from "wagmi";
-import { parseUnits, encodePacked, encodeFunctionData, maxUint256, zeroAddress } from "viem";
+import { parseUnits, encodePacked, encodeFunctionData, maxUint256, zeroAddress, hashTypedData } from "viem";
 import { baseSepolia } from "viem/chains";
 
 // Token addresses (Base mainnet)
@@ -15,6 +15,10 @@ const SPEND_PERMISSION_MANAGER = "0x456a216aC3312d45FF40079405b3a2eb4c88d7a5";
 
 // Default spender address (you may want to configure this)
 const DEFAULT_SPENDER = "0x2B654aB28f82a2a4E4F6DB8e20791E5AcF4125c6";
+
+const HOOKS = {
+  ERC20: "0xe7c50e770cf0b6cd5c5756f9de14fbb343cf9843"
+}
 
 // Utility function to deep copy an object and convert BigInts to strings
 function deepCopyWithBigIntToString(obj: any): any {
@@ -62,7 +66,7 @@ export default function Home() {
   const [signedPermission, setSignedPermission] = useState<any>(null);
   const [isSpending, setIsSpending] = useState(false);
 
-  console.log(chainId);
+  // console.log(chainId);
 
   // Switch to baseSepolia if on a different chain
   useEffect(() => {
@@ -85,12 +89,12 @@ export default function Home() {
   // Check if approval is needed (allowance is 0 or insufficient)
   const needsApproval = !allowance || allowance === BigInt(0);
 
-  console.log({allowance, needsApproval});
+  // console.log({allowance, needsApproval});
 
   // Get capabilities for the current chain
   const chainCapabilities = baseSepolia?.id ? capabilities?.[baseSepolia.id] : undefined;
 
-  console.log({capabilities, chainCapabilities, allowance, needsApproval});
+  // console.log({capabilities, chainCapabilities, allowance, needsApproval});
   
   // Check if auxiliary funds (balance abstraction) is supported
   const supportsAuxiliaryFunds = (chainCapabilities as any)?.auxiliaryFunds?.supported === true;
@@ -149,7 +153,7 @@ export default function Home() {
       end: end,
       salt: salt,
       extraData: extraData,
-      hook: zeroAddress,
+      hook: token === "USDC" && supportsAuxiliaryFunds ? HOOKS.ERC20 : zeroAddress,
       hookConfig: "0x",
     };
 
@@ -182,6 +186,16 @@ export default function Home() {
 
     // Store the permission for later use
     setSignedPermission(spendPermission);
+
+    const messageHash = hashTypedData({
+      domain,
+      types,
+      primaryType: "SpendPermission",
+      message: spendPermission,
+    });
+
+    console.log("Message:", {domain, types, message: spendPermission});
+    console.log("Message hash:", messageHash);
 
     signTypedData({
       domain,
