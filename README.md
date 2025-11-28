@@ -39,7 +39,7 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 - Ensure Wallet Mobile is pointing at the correct branch: eric/ba-surge/permit3
 - Run wallet-mobile with yarn nx run scw:start 
 
-2) Server-side environment variables
+2) Environment variables
 - Required (server-only): `PRIVATE_KEY`
   - This is the relayer private key used by the demo backend to submit on-chain transactions.
   - Add to `.env.local` (not committed):
@@ -47,14 +47,12 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
     PRIVATE_KEY=0xYOUR_TEST_PRIVATE_KEY
     ```
   - Fund the corresponding address with some ETH on Base Sepolia.
+- Required (client): `NEXT_PUBLIC_DEFAULT_SPENDER`
+  - Address used as the spender in the signed Spend Permission (typically your relayer).
+  - Add to `.env.local`:
+    ```
+    NEXT_PUBLIC_DEFAULT_SPENDER=0xYOUR_RELAYER_ADDRESS
+    ```
 
-3) Configure the default spender
-- Update the `DEFAULT_SPENDER` constant to your relayer address so it can act as the spender.
-  - Location: `app/page.tsx`
-
-4) Smart contract wallet owner step
+3) Smart contract wallet owner step
 - If using a smart contract wallet, visit `http://localhost:3005/settings` and add the Permit3 contract as an owner. Follow the UI flow there to complete owner addition.
-
-5) Approve-with-signature vs. spend race condition
-- In the current backend, the approve-with-signature and spend steps are not separated. There is a possible race condition where the spend can run before the approval is mined and thus fail.
-- If your spend fails, try again; once the approval is confirmed, the spend should succeed. This will be improved in the future. 
