@@ -14,7 +14,7 @@ const USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 const SPEND_PERMISSION_MANAGER = "0x0de59ad970032a49ca4b88eb33304fc38b4713ea";
 
 // Default spender address (you may want to configure this)
-const DEFAULT_SPENDER = "0xBE0A2722e938ff25273a6a3ba8A8c3643Fe4fEe8";
+const DEFAULT_SPENDER = (process.env.NEXT_PUBLIC_DEFAULT_SPENDER ?? "0xBE0A2722e938ff25273a6a3ba8A8c3643Fe4fEe8") as `0x${string}`;
 
 const HOOKS = {
   NATIVE: "0x1ee7c5cf2338a05d799d0cc1574ebc0634978009",
@@ -67,7 +67,9 @@ export default function Home() {
   const [balanceAbstraction, setBalanceAbstraction] = useState("none");
   const [subaccountAddress, setSubaccountAddress] = useState("");
   const [signedPermission, setSignedPermission] = useState<any>(null);
+  const [isApproving, setIsApproving] = useState(false);
   const [isSpending, setIsSpending] = useState(false);
+  const [approveTxHash, setApproveTxHash] = useState<string | null>(null);
   const [spendTxHash, setSpendTxHash] = useState<string | null>(null);
 
   // console.log(chainId);
@@ -233,16 +235,15 @@ export default function Home() {
     });
   };
 
-  const handleSpend = async () => {
+  const handleApproveWithSignature = async () => {
     if (!signedPermission || !signature) {
       console.error("No signed permission available");
       return;
     }
-
-    setIsSpending(true);
-
+    setIsApproving(true);
+    setApproveTxHash(null);
     try {
-      const response = await fetch("/spend", {
+      const response = await fetch("/approve", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -252,13 +253,49 @@ export default function Home() {
           signature: signature,
         }),
       });
+      const data = await response.json();
+      if (response.ok) {
+        setApproveTxHash(data.approveTxHash);
+      } else {
+        console.error("Approve failed:", data);
+        alert(`Approve failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Error calling approve API:", error);
+      alert("Error calling approve API");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleSpend = async () => {
+    if (!signedPermission) {
+      console.error("No permission available");
+      return;
+    }
+
+    setIsSpending(true);
+    setSpendTxHash(null);
+
+    // Compute spend value from the entered amount
+    const decimals = token === "USDC" ? 6 : 18;
+    const spendValue = parseUnits(amount || "0", decimals);
+
+    try {
+      const response = await fetch("/spend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          permission: deepCopyWithBigIntToString(signedPermission),
+          spendValue: spendValue.toString(),
+        }),
+      });
 
       const data = await response.json();
 
       if (response.ok) {
-        console.log("Spend successful!");
-        console.log("Approve transaction hash:", data.approveTxHash);
-        console.log("Spend transaction hash:", data.spendTxHash);
         setSpendTxHash(data.spendTxHash);
       } else {
         console.error("Spend failed:", data);
@@ -355,6 +392,30 @@ export default function Home() {
             </button>
 
             {signedPermission && signature && (
+              <button 
+                type="button" 
+                onClick={handleApproveWithSignature} 
+                className={styles.button}
+                disabled={isApproving}
+              >
+                {isApproving ? "Approving..." : "Approve (with signature)"}
+              </button>
+            )}
+
+            {approveTxHash && (
+              <div className={styles.txHashContainer}>
+                <a
+                  href={`https://sepolia.basescan.org/tx/${approveTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.txLink}
+                >
+                  View approval on Basescan
+                </a>
+              </div>
+            )}
+
+            {signedPermission && approveTxHash && (
               <button 
                 type="button" 
                 onClick={handleSpend} 
