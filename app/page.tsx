@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import { Wallet } from "@coinbase/onchainkit/wallet";
 import { useAccount, useCapabilities, useChainId, useSignTypedData, useSwitchChain, useSendTransaction, useReadContract } from "wagmi";
-import { parseUnits, encodePacked, encodeFunctionData, maxUint256, zeroAddress, hashTypedData, encodeAbiParameters, padHex, pad } from "viem";
+import { parseUnits, encodeFunctionData, maxUint256, zeroAddress, hashTypedData, pad } from "viem";
 import { baseSepolia } from "viem/chains";
 
 // Token addresses (Base mainnet)
